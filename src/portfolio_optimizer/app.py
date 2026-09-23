@@ -56,12 +56,15 @@ def optimize(request: OptimizeRequest) -> OptimizeResponse:
     if returns_matrix.empty:
         raise HTTPException(status_code=400, detail="No overlapping return data for selected tickers")
 
-    optimized_weights = strategy_fn(
-        tickers=tickers,
-        returns_matrix=returns_matrix,
-        store=store,
-        constraints=request.constraints.model_dump() if request.constraints else None,
-    )
+    try:
+        optimized_weights = strategy_fn(
+            tickers=tickers,
+            returns_matrix=returns_matrix,
+            store=store,
+            constraints=request.constraints.model_dump() if request.constraints else None,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     allocation_changes = []
     for i, ticker in enumerate(tickers):
