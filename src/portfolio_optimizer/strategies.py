@@ -238,3 +238,81 @@ def minimize_drawdown(
 
     _check_feasibility(best_result, constraints)
     return best_result.x * 100.0
+
+
+FACTOR_NAME_MAP = {
+    "momentum": "Momentum Factor",
+    "value": "Value Factor",
+    "size": "Size Factor",
+}
+
+
+def compute_factor_betas(
+    weights: np.ndarray,
+    tickers: list[str],
+    returns_matrix: pd.DataFrame,
+    store: DataStore,
+) -> dict[str, float]:
+    portfolio_returns = (returns_matrix.values @ (weights / 100.0))
+    port_series = pd.Series(portfolio_returns, index=returns_matrix.index, name="port")
+
+    factor_matrix = store.get_factor_returns_matrix()
+    common_dates = port_series.index.intersection(factor_matrix.index)
+    if len(common_dates) < 10:
+        return {"value": 0.0, "momentum": 0.0, "size": 0.0}
+
+    y = port_series.loc[common_dates].values
+    X = factor_matrix.loc[common_dates][
+        ["Momentum Factor", "Value Factor", "Size Factor"]
+    ].values
+    X_with_intercept = np.column_stack([np.ones(len(y)), X])
+
+    betas, _, _, _ = np.linalg.lstsq(X_with_intercept, y, rcond=None)
+
+    return {
+        "momentum": round(float(betas[1]), 4),
+        "value": round(float(betas[2]), 4),
+        "size": round(float(betas[3]), 4),
+    }
+
+
+def optimize_factor_exposure(
+    tickers: list[str],
+    returns_matrix: pd.DataFrame,
+    store: DataStore,
+    constraints: dict | None = None,
+    factor_target: str = "momentum",
+) -> np.ndarray:
+    n = len(tickers)
+    bounds, cons = _build_bounds_and_constraints(n, tickers, returns_matrix, store, constraints)
+
+    factor_col = FACTOR_NAME_MAP.get(factor_target.lower())
+    if factor_col is None:
+        raise ValueError(f"Unknown factor: {factor_target}. Must be one of {list(FACTOR_NAME_MAP.keys())}")
+
+    factor_matrix = store.get_factor_returns_matrix()
+    common_dates = returns_matrix.index.intersection(factor_matrix.index)
+    factor_vals = factor_matrix.loc[common_dates][[
+        "Momentum Factor", "Value Factor", "Size Factor"
+    ]].values
+    fund_returns = returns_matrix.loc[common_dates].values
+    X_with_intercept = np.column_stack([np.ones(len(common_dates)), factor_vals])
+
+    factor_idx = {"momentum": 1, "value": 2, "size": 3}[factor_target.lower()]
+
+    def neg_factor_beta(weights: np.ndarray) -> float:
+        y = fund_returns @ weights
+        betas, _, _, _ = np.linalg.lstsq(X_with_intercept, y, rcond=None)
+        return -float(betas[factor_idx])
+
+    w0 = np.full(n, 1.0 / n)
+    result = minimize(
+        neg_factor_beta,
+        w0,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=cons,
+        options={"maxiter": 1000, "ftol": 1e-15},
+    )
+    _check_feasibility(result, constraints)
+    return result.x * 100.0

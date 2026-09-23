@@ -51,6 +51,12 @@ class DataStore:
         pivot = pivot.dropna()
         return pivot
 
+    def get_factor_returns_matrix(self) -> pd.DataFrame:
+        df = self.factor_returns
+        pivot = df.pivot(index="date", columns="index_ticker", values="total_return")
+        pivot = pivot.dropna()
+        return pivot
+
     @property
     def valid_tickers(self) -> list[str]:
         return self.fund_info["ticker"].tolist()
