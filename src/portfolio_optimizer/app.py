@@ -5,12 +5,22 @@ from fastapi import FastAPI, HTTPException
 
 from .data import DataStore
 from .schemas import AllocationChange, OptimizeRequest, OptimizeResponse
-from .strategies import equal_weights
+from .strategies import (
+    equal_weights,
+    maximize_sharpe_ratio,
+    minimize_drawdown,
+    minimize_volatility,
+    risk_parity,
+)
 
 store: DataStore | None = None
 
 STRATEGY_MAP = {
     "equal_weights": equal_weights,
+    "risk_parity": risk_parity,
+    "minimize_volatility": minimize_volatility,
+    "maximize_sharpe_ratio": maximize_sharpe_ratio,
+    "minimize_drawdown": minimize_drawdown,
 }
 
 
