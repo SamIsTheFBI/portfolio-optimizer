@@ -1,0 +1,21 @@
+[project]
+name = "portfolio-optimizer"
+version = "0.1.0"
+description = "Portfolio Optimizer REST API"
+readme = "README.md"
+authors = [
+    { name = "SamIsTheFBI", email = "shivamshekharsoy@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "openpyxl>=3.1",
+    "pandas>=2.2",
+    "numpy>=2.0",
+    "scipy>=1.14",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
